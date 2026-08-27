@@ -41,11 +41,14 @@ Codex 会把 app-server 失败映射为八种类别：
 
 Codex 诊断会保留 `initialize`、`thread-start`、`turn-start`、`turn`、`process` 或 `teardown`，以及适用的数值 HTTP status 和分别观测到的退出码与信号。`contextWindowExceeded` 仍把共享终止原因映射为 `max-tokens`；其他所有类别仍使用 `error`。只有结构化协议事实会贡献权限说明。产品 stderr 只供 Host 观测，既不会被分类，也不会复制进结果。
 
+进程内 spawn 与 fork 提供方只从子 agent 最终持久化的 `turn/end` 失败派生诊断。它们公开 `model request failed (<code>)`，其中 `<code>` 是提供方无关的 `LlmFailure.code`，并把提供方消息保留在子会话内。父 agent 因此可以区分终止配额、身份验证与临时节流，而不会把任务或账户文本复制进工具结果。
+
 ### 所有权与生命周期
 
 | 事实或操作 | 责任方 | 结果 |
 | --- | --- | --- |
 | 产品错误解释 | 官方产品运行时 | 提供方只消费其锁定集成公开的结构化事实 |
+| 进程内模型失败 | 子 agent 最终的 `turn/end` | 提供方只公开稳定的 `LlmFailure.code` |
 | 行动类别与阶段 | 单次产品提供方运行 | 在失败位置派生，并在结果结算后丢弃 |
 | 退出码与信号 | `dsh-subprocess` 句柄 | 观测到时分别展示，不推断缺失值 |
 | 权限决定 | 产品提供方权限回调或协议 | 只在参与失败运行时追加 |
