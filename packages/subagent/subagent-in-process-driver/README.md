@@ -57,7 +57,7 @@ The driver follows this sequence:
 2. Create the child through the host agent factory with the caller's required signal threaded into the creation transaction.
 3. During that transaction's unpublished setup window, install the requested persona, tool restriction, and structured-output runtime.
 4. Publish the child, retain the returned handle, and drive one task.
-5. Read the child's own output — its last non-empty assistant message, or its accumulated assistant text when none exists — and the final durable turn reason from the complete owned run, excluding any fork seed.
+5. Read the child's own output, its last non-empty assistant message or accumulated assistant text when none exists, and the final durable turn reason from the complete owned run, excluding any fork seed. A model failure adds only its stable failure code as a safe diagnostic; provider text remains in the child session.
 
 ### Cancellation and ownership
 
