@@ -70,6 +70,14 @@ const EXCEEDS_MODEL_CONTEXT = new RegExp(
   'i',
 )
 
+/** Provider wording that puts the exhaustion verb before a bounded usage window. */
+const REACHED_USAGE_LIMIT = new RegExp(
+  String.raw`\breach(?:ed|es)[\s_-]+(?:(?:your|the)[\s_-]+)?`
+  + String.raw`(?:(?:current|daily|weekly|monthly|rolling)[\s_-]+)?`
+  + String.raw`(?:\([^)]{1,32}\)[\s_-]+)?usage[\s_-]+limit\b`,
+  'i',
+)
+
 /**
  * Recognize the context-overflow wording used by OpenAI-compatible providers
  * and library adapters. Adapters pass all available provider code, type, and
@@ -94,6 +102,7 @@ export function isContextWindowExceededError(detail: string): boolean {
 export function isQuotaExceededError(detail: string): boolean {
   return /\binsufficient[\s_-]+(?:quota|balance|credits?)\b/i.test(detail)
     || /\b(?:quota|usage[\s_-]+limit)[\s_-]+(?:exceeded|exhausted|reached)\b/i.test(detail)
+    || REACHED_USAGE_LIMIT.test(detail)
     || /\bexceed(?:ed|s)?[\s_-]+(?:(?:your|the)[\s_-]+)?(?:current[\s_-]+)?quota\b/i.test(detail)
     || /\b(?:balance|credits?)[\s_-]+(?:exhausted|depleted)\b/i.test(detail)
     || /\bout[\s_-]+of[\s_-]+(?:credits?|budget)\b/i.test(detail)
