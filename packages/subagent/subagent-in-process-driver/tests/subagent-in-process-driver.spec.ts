@@ -98,6 +98,29 @@ describe('startInProcessRun', () => {
     await run.dispose()
   })
 
+  it('reports the stable model failure code without exposing provider text', async () => {
+    const { parent } = await setup([[
+      {
+        type: 'finish',
+        reason: {
+          kind: 'error',
+          failure: {
+            code: 'QUOTA',
+            message: "You've reached your weekly usage limit. Account: private@example.com",
+          },
+        },
+      },
+    ]])
+
+    const run = await startInProcessRun(request(parent), {})
+    await expect(run.result).resolves.toEqual({
+      diagnostic: 'model request failed (QUOTA)',
+      output: [],
+      stopReason: 'error',
+    })
+    await run.dispose()
+  })
+
   it('does not add a final durability checkpoint to a foreground run', async () => {
     const { ctx, parent } = await setup([textResponse('driver answer')])
     let flushes = 0

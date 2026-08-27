@@ -221,6 +221,9 @@ function readResult(
   // The seam's canonical selection rule; a partial answer survives cancel and truncation.
   const output: ContentBlock[] = finalAssistantOutput(own) ?? []
   const recorded = toStopReason(lastEnd?.data.reason)
+  const diagnostic = lastEnd?.data.reason.kind === 'error'
+    ? `model request failed (${lastEnd.data.reason.error.code})`
+    : undefined
   // Disposal can tear the owner down before the loop records its ordinary
   // `aborted` end, yielding `disposed` instead.
   const stopReason: SubagentStopReason = cancelled && recorded !== 'completed' ? 'aborted' : recorded
@@ -230,5 +233,9 @@ function readResult(
     }
     if (stopReason === 'completed') return { output, stopReason: cancelled ? 'aborted' : 'error' }
   }
-  return { output, stopReason }
+  return {
+    output,
+    ...diagnostic === undefined ? {} : { diagnostic },
+    stopReason,
+  }
 }
