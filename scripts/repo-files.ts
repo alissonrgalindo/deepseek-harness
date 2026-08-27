@@ -1,7 +1,7 @@
 /** Shared repository file discovery and line-oriented reference scanning. */
 
 import { globSync, readFileSync, realpathSync } from 'node:fs'
-import { relative, resolve, sep } from 'node:path'
+import { matchesGlob, relative, resolve, sep } from 'node:path'
 
 /** One authored path plus its canonical target for symlink deduplication. */
 export interface RepoFile {
@@ -41,7 +41,12 @@ export function uniqueRepoFiles(
   const seen = new Set<string>()
   const files: RepoFile[] = []
   for (const pattern of patterns) {
-    for (const match of globSync(pattern, { cwd: root })) {
+    const recursive = pattern.indexOf('**/')
+    const matches = recursive === -1
+      ? globSync(pattern, { cwd: root })
+      : globSync(`${pattern.slice(0, recursive)}**`, { cwd: root })
+        .filter(match => matchesGlob(match.split(sep).join('/'), pattern))
+    for (const match of matches) {
       const repoPath = match.split(sep).join('/')
       if (isExcluded(repoPath)) continue
       const abs = resolve(root, repoPath)
