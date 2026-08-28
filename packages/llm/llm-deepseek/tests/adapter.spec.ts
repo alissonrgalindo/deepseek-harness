@@ -1428,6 +1428,13 @@ describe('DeepSeekAdapter against a mock server', () => {
     expect(httpErrorCode(429, { message: 'request rate limit exceeded' })).toBe('RATE_LIMIT')
   })
 
+  it('reads quota wording carried by an authentication status as exhausted quota', () => {
+    expect(httpErrorCode(403, { message: "You've reached your weekly (7-day) usage limit." }))
+      .toBe(QUOTA_EXCEEDED_CODE)
+    expect(httpErrorCode(403, { message: 'forbidden' })).toBe('AUTH')
+    expect(httpErrorCode(401, { message: 'invalid api key' })).toBe('AUTH')
+  })
+
   it('keeps the status-line message for JSON error bodies without a message', async () => {
     const server = await mockServer([{ kind: 'http-error', status: 500, body: '{"error":{"type":"x"}}' }])
     const ctx = await harness(server.url)
