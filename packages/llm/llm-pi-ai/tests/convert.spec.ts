@@ -806,6 +806,13 @@ describe('mapStopReason / mapUsage', () => {
       stopReason: 'error',
       errorMessage: 'OpenAI API error (429): You exceeded your current quota, please check your plan and billing details.',
     }))).toMatchObject({ kind: 'error', failure: { code: 'QUOTA' } })
+    // A spent usage window arrives as 403; the status alone would read as AUTH.
+    expect(mapStopReason(assistant({
+      stopReason: 'error',
+      errorMessage: "Kimi API error (403): You've reached your weekly (7-day) usage limit.",
+    }))).toMatchObject({ kind: 'error', failure: { code: 'QUOTA' } })
+    expect(mapStopReason(assistant({ stopReason: 'error', errorMessage: 'HTTP 403: forbidden' })))
+      .toMatchObject({ kind: 'error', failure: { code: 'AUTH' } })
     expect(mapStopReason(assistant({ stopReason: 'error', errorMessage: 'HTTP 500: backend down' })))
       .toMatchObject({ kind: 'error', failure: { code: 'SERVER' } })
     expect(mapStopReason(assistant({ stopReason: 'error', errorMessage: 'provider timed out' })))

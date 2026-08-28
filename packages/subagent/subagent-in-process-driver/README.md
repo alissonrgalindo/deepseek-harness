@@ -57,7 +57,7 @@ The driver follows this sequence:
 2. Create the child through the host agent factory with the caller's required signal threaded into the creation transaction.
 3. During that transaction's unpublished setup window, install the requested persona, tool restriction, and structured-output runtime.
 4. Publish the child, retain the returned handle, and drive one task.
-5. Read the child's own output — its last non-empty assistant message, or its accumulated assistant text when none exists — and the final durable turn reason from the complete owned run, excluding any fork seed.
+5. Read the child's own output, its last non-empty assistant message or accumulated assistant text when none exists, and the final durable turn reason from the complete owned run, excluding any fork seed. A run that ends `error` on a failed turn adds only that turn's stable failure code as a safe diagnostic; provider text remains in the child session, and a cancelled run stays undiagnosed so its Task settles as a kill.
 
 ### Cancellation and ownership
 
@@ -146,7 +146,7 @@ Append-only; newly visible content follows the reusable request prefix and does 
 
 #### What the model sees
 
-The driver extracts only the child's own last assistant output or captured structured value; seeded parent messages and intermediate child work do not become the result.
+The driver extracts only the child's own last assistant output or captured structured value; seeded parent messages and intermediate child work do not become the result. A run that ends `error` on a failed turn adds one fixed line, `Subagent failure (provider: in-process; stage: turn; code: <code>)`, which `dsh-tool-subagent` presents before any partial output; provider messages, task text, and account details never appear.
 
 #### Token effect
 
