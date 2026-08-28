@@ -55,6 +55,18 @@ function text(blocks: readonly { type: string; text?: string }[]): string {
   return blocks.filter(block => block.type === 'text').map(block => block.text).join('')
 }
 
+/** One terminal provider failure whose message must never reach the parent. */
+const quotaFailure: Script[number] = [{
+  type: 'finish',
+  reason: {
+    kind: 'error',
+    failure: {
+      code: 'QUOTA',
+      message: "You've reached your weekly usage limit. Account: private@example.com",
+    },
+  },
+}]
+
 describe('startInProcessRun', () => {
   it('returns only after publication, drives a fresh child, and disposes it', async () => {
     const { ctx, parent } = await setup([textResponse('driver answer')])
@@ -98,26 +110,32 @@ describe('startInProcessRun', () => {
     await run.dispose()
   })
 
-  it('reports the stable model failure code without exposing provider text', async () => {
-    const { parent } = await setup([[
-      {
-        type: 'finish',
-        reason: {
-          kind: 'error',
-          failure: {
-            code: 'QUOTA',
-            message: "You've reached your weekly usage limit. Account: private@example.com",
-          },
-        },
-      },
-    ]])
+  it('reports the stable failure code without exposing provider text', async () => {
+    const { parent } = await setup([quotaFailure])
 
     const run = await startInProcessRun(request(parent), {})
     await expect(run.result).resolves.toEqual({
-      diagnostic: 'model request failed (QUOTA)',
+      diagnostic: 'Subagent failure (provider: in-process; stage: turn; code: QUOTA)',
       output: [],
       stopReason: 'error',
     })
+    await run.dispose()
+  })
+
+  it('leaves a locally cancelled run undiagnosed so its task settles as killed', async () => {
+    const { ctx, parent } = await setup([quotaFailure])
+    const controller = new AbortController()
+    // The owner stops the run after the loop recorded its failed turn but
+    // before the driver reads the result.
+    ctx.on('session/event', (_session, event) => {
+      if (event.type === 'turn/end') controller.abort('owner stop')
+    })
+
+    const run = await startInProcessRun(request(parent, controller.signal), {})
+    await expect(run.result).resolves.toEqual({ output: [], stopReason: 'aborted' })
+    const child = ctx.agents.get(run.id)
+    const turnEnd = child?.session.snapshotEvents().findLast(event => event.type === 'turn/end')
+    expect(turnEnd?.type === 'turn/end' && turnEnd.data.reason.kind).toBe('error')
     await run.dispose()
   })
 

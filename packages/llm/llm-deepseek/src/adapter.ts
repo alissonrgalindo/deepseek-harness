@@ -330,10 +330,12 @@ function requestId(headers: Headers): ReturnType<typeof ProviderRequestId> | und
  * @returns the normalized harness error code.
  */
 export function httpErrorCode(status: number, error?: WireError['error']): string {
+  const detail = [error?.code, error?.type, error?.message].filter(Boolean).join(' ')
+  // Exhausted-quota wording outranks every status: providers report a spent
+  // usage window as 403 or 429, and neither credentials nor pacing fix it.
+  if (isQuotaExceededError(detail)) return QUOTA_EXCEEDED_CODE
   if (status === 401 || status === 403) return 'AUTH'
   if (status === 413) return 'INVALID_REQUEST'
-  const detail = [error?.code, error?.type, error?.message].filter(Boolean).join(' ')
-  if (isQuotaExceededError(detail)) return QUOTA_EXCEEDED_CODE
   if (status === 429) return 'RATE_LIMIT'
   if (status === 400) {
     if (isContextWindowExceededError(detail)) return CONTEXT_WINDOW_EXCEEDED_CODE
