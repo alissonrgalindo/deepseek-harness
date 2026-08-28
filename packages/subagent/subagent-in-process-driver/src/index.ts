@@ -65,6 +65,16 @@ function toStopReason(reason: TurnEndReason | undefined): SubagentStopReason {
   }
 }
 
+/**
+ * Fixed safe failure text built from the child's stable failure code alone.
+ * A `turn/end` error covers any fault raised inside the turn, so the line names
+ * the run rather than the model, and provider message text stays in the child
+ * session.
+ */
+function failureDiagnostic(code: string): string {
+  return `Subagent failure (provider: in-process; stage: turn; code: ${code})`
+}
+
 /** Extra inputs the spawn and fork providers supply to the shared driver. */
 export interface InProcessRunOptions {
   /** Completed-turn seed for fork, or undefined for a fresh spawn. */
@@ -221,12 +231,14 @@ function readResult(
   // The seam's canonical selection rule; a partial answer survives cancel and truncation.
   const output: ContentBlock[] = finalAssistantOutput(own) ?? []
   const recorded = toStopReason(lastEnd?.data.reason)
-  const diagnostic = lastEnd?.data.reason.kind === 'error'
-    ? `model request failed (${lastEnd.data.reason.error.code})`
-    : undefined
   // Disposal can tear the owner down before the loop records its ordinary
   // `aborted` end, yielding `disposed` instead.
   const stopReason: SubagentStopReason = cancelled && recorded !== 'completed' ? 'aborted' : recorded
+  // Only a failed run carries one: `dsh-subagent` settles an `aborted` result
+  // without a diagnostic as a local kill and one with a diagnostic as failed.
+  const diagnostic = stopReason === 'error' && lastEnd?.data.reason.kind === 'error'
+    ? failureDiagnostic(lastEnd.data.reason.error.code)
+    : undefined
   if (structured !== undefined) {
     if (structured.captured !== undefined) {
       return { output, structured: structured.captured.value, stopReason }

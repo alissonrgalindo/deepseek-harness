@@ -41,14 +41,14 @@ Codex maps app-server failures into eight categories:
 
 The Codex diagnostic retains `initialize`, `thread-start`, `turn-start`, `turn`, `process`, or `teardown`, plus applicable numeric HTTP status and independently observed exit code and signal. `contextWindowExceeded` still maps the shared stop reason to `max-tokens`; every other category remains `error`. Only structured protocol facts contribute permission detail. Product stderr is Host-only observation and is neither classified nor copied into the result.
 
-In-process spawn and fork providers derive a diagnostic only from the final durable `turn/end` failure. They expose `model request failed (<code>)`, where `<code>` is the provider-neutral `LlmFailure.code`, and keep the provider message inside the child session. This lets a parent distinguish terminal quota from authentication or transient throttling without copying task or account text into the tool result.
+In-process spawn and fork providers derive a diagnostic only from a final durable `turn/end` failure that settles the run as `error`. They expose `Subagent failure (provider: in-process; stage: turn; code: <code>)`, where `<code>` is the provider-neutral `LlmFailure.code`, and keep the provider message inside the child session. This lets a parent distinguish terminal quota from authentication or transient throttling without copying task or account text into the tool result. A `turn/end` failure covers any fault raised inside the turn, so the line names the run rather than the model. A locally cancelled run stays undiagnosed, which keeps its Task a kill rather than a failure.
 
 ### Ownership and lifecycle
 
 | Fact or operation | Owner | Result |
 | --- | --- | --- |
 | Product error interpretation | Official product runtime | The Provider consumes only structured facts exposed by its pinned integration |
-| In-process model failure | Final child `turn/end` | The Provider exposes only the stable `LlmFailure.code` |
+| In-process run failure | Final child `turn/end` on an `error` result | The Provider exposes only the stable `LlmFailure.code` |
 | Action category and stage | One product Provider run | Derived at the failure site and discarded after result settlement |
 | Exit code and signal | `dsh-subprocess` handle | Displayed independently when observed, without inferring missing values |
 | Permission decision | Product Provider permission callbacks or protocol | Appended only when it contributed to the failed run |
