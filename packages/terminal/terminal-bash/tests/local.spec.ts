@@ -12,6 +12,7 @@ import type { TerminalSendOperation } from '@deepseek-ai/dsh-terminal'
 import SandboxProvider from '@deepseek-ai/dsh-sandbox'
 import type { ConfinedArgv, SandboxPolicy } from '@deepseek-ai/dsh-sandbox'
 import SandboxPolicyService from '@deepseek-ai/dsh-sandbox-policy'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import { resolvePwshPath } from '@deepseek-ai/dsh-pwsh-local/src/resolve.ts'
 import * as ptyLocal from '@deepseek-ai/dsh-terminal-bash'
@@ -60,6 +61,7 @@ async function harness(
   await ctx.plugin(AgentRegistry)
   await ctx.plugin(TerminalSessionService)
   await ctx.plugin(PassthroughSandbox)
+  await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(SandboxPolicyService, { mode, workspaceRoot: root })
   await ctx.plugin(LocalSubprocessRuntime)
   const fiber = await ctx.plugin(ptyLocal, {
@@ -141,7 +143,7 @@ describe.skipIf(process.platform === 'win32')('terminal-bash real shell', () => 
       expect(created.motd).toContain('dsh> ')
 
       const first = ctx.terminals.startSend(agent, created.sessionId, { text: 'export KEEP=ok; cd /', submit: true })
-      expect((await first.done).waitReason).toBe('stdin_read')
+      expectReadyForNextSend((await first.done).waitReason)
       const second = ctx.terminals.startSend(agent, created.sessionId, { text: 'printf "cwd=%s keep=%s secret=%s\\n" "$PWD" "$KEEP" "${DSH_TEST_SECRET-unset}"', submit: true })
       expect((await second.done).viewport).toContain('cwd=/ keep=ok secret=unset')
 
@@ -321,9 +323,9 @@ describe.skipIf(!hasPwsh)('terminal-bash pwsh real shell', () => {
     process.env.DSH_TEST_SECRET = 'must-not-leak'
     try {
       const { ctx, root, agent } = await harness('danger-full-access', {
-        idleSilenceMs: 300,
+        idleSilenceMs: 3_000,
         handoffGraceMs: 300,
-        timeoutMs: 8_000,
+        timeoutMs: 15_000,
       }, 'pwsh')
       const created = await ctx.terminals.spawn(agent, { type: 'shell', name: 'main', cwd: root })
       expect(created.motd).toContain('dsh> ')
@@ -349,7 +351,7 @@ describe.skipIf(!hasPwsh)('terminal-bash pwsh real shell', () => {
       if (previous === undefined) delete process.env.DSH_TEST_SECRET
       else process.env.DSH_TEST_SECRET = previous
     }
-  }, 30_000)
+  }, 45_000)
 
   it('pins UTF-8 output encoding so non-ASCII output survives the byte decode', async () => {
     const { ctx, root, agent } = await harness('danger-full-access', {

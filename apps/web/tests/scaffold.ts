@@ -57,7 +57,6 @@ import {
   type Profile,
 } from '@deepseek-ai/dsh-app-boot'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
-import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 import { LlmAdapter } from '@deepseek-ai/dsh-llm'
 import type {
   LlmModelInfo, LlmProviderInfo, LlmResolvedModelInfo, RetryPolicyConfig, StreamChunk,
@@ -636,7 +635,7 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     await ctx.loader.await()
     assertEntriesLoaded(ctx, 'web e2e scaffold')
     if (options.welcomeNoticePending !== true) {
-      await ctx.settings.mutate(settingsNamespace(WELCOME_NOTICE_SETTINGS_NAMESPACE), [{
+      await ctx.settings.mutate(WELCOME_NOTICE_SETTINGS_NAMESPACE, [{
         op: 'set', path: [WELCOME_NOTICE_ACK_FIELD], value: WELCOME_NOTICE_VERSION,
       }])
     }
@@ -816,7 +815,10 @@ function normalizeWebSessionVolatiles(log: string): string {
     }
     if (Array.isArray(value)) return value.map(normalizeValue)
     if (value !== null && typeof value === 'object') {
-      return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, normalizeValue(item)]))
+      return Object.fromEntries(Object.entries(value).map(([key, item]) => [
+        key,
+        key === 'clientTimeZone' && typeof item === 'string' ? '{{clientTimeZone}}' : normalizeValue(item),
+      ]))
     }
     return value
   }
