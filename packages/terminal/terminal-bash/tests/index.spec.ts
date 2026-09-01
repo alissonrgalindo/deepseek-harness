@@ -424,7 +424,7 @@ describe('BashTerminalBackend startup rollback', () => {
     expect(session.motd).toBe('dsh> ')
   })
 
-  it('preserves pwsh startup output when the readiness follow-up is silent', async () => {
+  it('retries the pwsh bootstrap when stdin readiness precedes the controlled prompt', async () => {
     const ctx = new Context()
     await ctx.plugin(EmptySandbox)
     await ctx.plugin(SessionProjectionRegistry)
@@ -433,12 +433,12 @@ describe('BashTerminalBackend startup rollback', () => {
     const session = {
       motd: '',
       startSend: () => {
-        const first = sends === 0
+        const current = sends
         sends += 1
         return {
           done: Promise.resolve({
-            viewport: first ? 'dsh> ' : '',
-            waitReason: first ? 'inferred_idle' as const : 'stdin_read' as const,
+            viewport: current === 0 ? 'PS /workspace> ' : current === 1 ? '' : 'dsh> ',
+            waitReason: current === 0 ? 'inferred_idle' as const : 'stdin_read' as const,
             sessionStatus: { kind: 'running' as const }, truncated: false,
           }),
           readOutput: () => ({ delta: '', truncated: false }),
@@ -454,7 +454,7 @@ describe('BashTerminalBackend startup rollback', () => {
       () => session,
     )
     await backend.spawn(spec(agent(ctx)))
-    expect(sends).toBe(2)
+    expect(sends).toBe(3)
     expect(session.motd).toBe('dsh> ')
   })
 
