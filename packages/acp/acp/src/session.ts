@@ -201,7 +201,12 @@ export class AcpSession {
     return this.modelControl.options(signal)
   }
 
-  /** Fold activation-time topology changes into prepared options before notifications begin. */
+  /**
+   * Fold activation-time topology changes into prepared options before notifications begin.
+   * @param prepared - options discovered before session materialization.
+   * @param signal - optional catalog and exact-model cancellation.
+   * @returns the final initial options after every activation-time topology change settles.
+   */
   async activateConfigOptions(
     prepared: SessionConfigOption[],
     signal?: AbortSignal,
