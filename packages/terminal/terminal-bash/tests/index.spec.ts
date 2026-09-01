@@ -424,6 +424,40 @@ describe('BashTerminalBackend startup rollback', () => {
     expect(session.motd).toBe('dsh> ')
   })
 
+  it('preserves pwsh startup output when the readiness follow-up is silent', async () => {
+    const ctx = new Context()
+    await ctx.plugin(EmptySandbox)
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicyService, { mode: 'danger-full-access', workspaceRoot: '/workspace' })
+    let sends = 0
+    const session = {
+      motd: '',
+      startSend: () => {
+        const first = sends === 0
+        sends += 1
+        return {
+          done: Promise.resolve({
+            viewport: first ? 'dsh> ' : '',
+            waitReason: first ? 'inferred_idle' as const : 'stdin_read' as const,
+            sessionStatus: { kind: 'running' as const }, truncated: false,
+          }),
+          readOutput: () => ({ delta: '', truncated: false }),
+          cancel: () => false,
+        }
+      },
+      read: () => ({ text: '', totalLines: 0, lineBegin: 0, lineEnd: 0, truncated: false }),
+    } as unknown as LocalPtySession
+    const backend = new BashTerminalBackend(
+      ctx,
+      { ...config(), shellDialect: 'pwsh', shellPath: 'pwsh' },
+      async () => terminalHandle(),
+      () => session,
+    )
+    await backend.spawn(spec(agent(ctx)))
+    expect(sends).toBe(2)
+    expect(session.motd).toBe('dsh> ')
+  })
+
   it('rejects a pwsh bootstrap whose shell exits or times out', async () => {
     const ctx = new Context()
     await ctx.plugin(EmptySandbox)
