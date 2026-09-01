@@ -815,7 +815,10 @@ function normalizeWebSessionVolatiles(log: string): string {
     }
     if (Array.isArray(value)) return value.map(normalizeValue)
     if (value !== null && typeof value === 'object') {
-      return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, normalizeValue(item)]))
+      return Object.fromEntries(Object.entries(value).map(([key, item]) => [
+        key,
+        key === 'clientTimeZone' && typeof item === 'string' ? '{{clientTimeZone}}' : normalizeValue(item),
+      ]))
     }
     return value
   }
