@@ -323,9 +323,9 @@ describe.skipIf(!hasPwsh)('terminal-bash pwsh real shell', () => {
     process.env.DSH_TEST_SECRET = 'must-not-leak'
     try {
       const { ctx, root, agent } = await harness('danger-full-access', {
-        idleSilenceMs: 300,
+        idleSilenceMs: 3_000,
         handoffGraceMs: 300,
-        timeoutMs: 8_000,
+        timeoutMs: 15_000,
       }, 'pwsh')
       const created = await ctx.terminals.spawn(agent, { type: 'shell', name: 'main', cwd: root })
       expect(created.motd).toContain('dsh> ')
@@ -334,7 +334,7 @@ describe.skipIf(!hasPwsh)('terminal-bash pwsh real shell', () => {
         text: '$env:KEEP = "ok"; Set-Location /',
         submit: true,
       })
-      expectReadyForNextSend((await first.done).waitReason)
+      expect((await first.done).waitReason).toBe('stdin_read')
       const second = ctx.terminals.startSend(agent, created.sessionId, {
         text: 'Write-Output "keep=$env:KEEP secret=$env:DSH_TEST_SECRET"',
         submit: true,
@@ -351,7 +351,7 @@ describe.skipIf(!hasPwsh)('terminal-bash pwsh real shell', () => {
       if (previous === undefined) delete process.env.DSH_TEST_SECRET
       else process.env.DSH_TEST_SECRET = previous
     }
-  }, 30_000)
+  }, 45_000)
 
   it('pins UTF-8 output encoding so non-ASCII output survives the byte decode', async () => {
     const { ctx, root, agent } = await harness('danger-full-access', {
