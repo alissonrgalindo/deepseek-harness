@@ -223,10 +223,11 @@ export function apply(ctx: Context, config: AcpConfig): void {
       }
       sessions.set(sessionId, record)
       try {
-        const configOptions = await record.configOptions(signal)
+        const preparedConfigOptions = await record.configOptions(signal)
         assertOpen()
         await persistence.ensureMaterialized(record.agent.session)
         assertOpen()
+        const configOptions = await record.activateConfigOptions(preparedConfigOptions, signal)
         return { sessionId, configOptions }
       } catch (error: unknown) {
         sessions.delete(sessionId)
@@ -279,7 +280,8 @@ export function apply(ctx: Context, config: AcpConfig): void {
         }
         sessions.set(sessionId, record)
         try {
-          return { configOptions: await record.configOptions(signal) }
+          const preparedConfigOptions = await record.configOptions(signal)
+          return { configOptions: await record.activateConfigOptions(preparedConfigOptions, signal) }
         } catch (error: unknown) {
           sessions.delete(sessionId)
           await record.close('session/resume option discovery failed')
