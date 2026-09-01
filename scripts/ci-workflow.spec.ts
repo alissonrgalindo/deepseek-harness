@@ -152,9 +152,8 @@ describe('CI workflow', () => {
 
     // windows-coverage keeps four partitions upstream and scales down in forks.
     expect(windowsCoverage.name).toBe('windows node 24 / coverage')
-    expect(windowsCoverage.env).toMatchObject({
-      DSH_COVERAGE_PARTITIONS: expect.stringContaining("github.repository != 'deepseek-harness/deepseek-harness'"),
-    })
+    expect(jobEnv(windowsCoverage, 'DSH_COVERAGE_PARTITIONS'))
+      .toContain("github.repository != 'deepseek-harness/deepseek-harness'")
     const coverageSteps = windowsCoverage.steps as unknown[]
     const coverageCommands = coverageSteps.filter((step): step is Record<string, unknown> & { run: string } => (
       isRecord(step) && typeof step.run === 'string'
@@ -246,15 +245,12 @@ describe('CI workflow', () => {
     expect(aggregate['runs-on']).toContain('DSH_CI_FAILOVER_LINUX')
     expect(aggregate['runs-on']).not.toContain('DSH_CI_FAILOVER_WINDOWS')
     expect(aggregate['runs-on']).toContain('vm-backup')
-    expect(node24Coverage.env).toMatchObject({
-      DSH_COVERAGE_MAX_WORKERS: expect.stringContaining("github.repository != 'deepseek-harness/deepseek-harness'"),
-    })
-    expect(node24Consumers.env).toMatchObject({
-      DSH_GATE_CONCURRENCY: expect.stringContaining("github.repository != 'deepseek-harness/deepseek-harness'"),
-    })
-    expect(windowsCoverage.env).toMatchObject({
-      DSH_COVERAGE_MAX_WORKERS: expect.stringContaining("github.repository != 'deepseek-harness/deepseek-harness'"),
-    })
+    expect(jobEnv(node24Coverage, 'DSH_COVERAGE_MAX_WORKERS'))
+      .toContain("github.repository != 'deepseek-harness/deepseek-harness'")
+    expect(jobEnv(node24Consumers, 'DSH_GATE_CONCURRENCY'))
+      .toContain("github.repository != 'deepseek-harness/deepseek-harness'")
+    expect(jobEnv(windowsCoverage, 'DSH_COVERAGE_MAX_WORKERS'))
+      .toContain("github.repository != 'deepseek-harness/deepseek-harness'")
 
     // The run-gates aggregate lanes stop at the first blocking gate failure so
     // a red aggregate does not keep burning runner time on the remaining
@@ -818,6 +814,13 @@ function workflowJob(workflow: Record<string, unknown>, job: string): Record<str
     throw new TypeError(`workflow must define the ${job} job`)
   }
   return workflow.jobs[job]
+}
+
+function jobEnv(job: Record<string, unknown>, name: string): string {
+  if (!isRecord(job.env) || typeof job.env[name] !== 'string') {
+    throw new TypeError(`workflow job must define string env ${name}`)
+  }
+  return job.env[name]
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
