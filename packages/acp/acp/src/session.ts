@@ -102,6 +102,8 @@ export class AcpSession {
   private outputTail = Promise.resolve()
   private inflight: InflightPrompt | undefined
   private closing: Promise<void> | undefined
+  private configOptionsPublished = false
+  private topologyChangedDuringActivation = false
   private readonly pendingSelections = new Map<string, ModelSelection>()
 
   private constructor(
@@ -196,6 +198,21 @@ export class AcpSession {
     return this.modelControl.options(signal)
   }
 
+  /** Fold activation-time topology changes into prepared options before notifications begin. */
+  async activateConfigOptions(
+    prepared: SessionConfigOption[],
+    signal?: AbortSignal,
+  ): Promise<SessionConfigOption[]> {
+    this.assertActive()
+    let configOptions = prepared
+    while (this.topologyChangedDuringActivation) {
+      this.topologyChangedDuringActivation = false
+      configOptions = await this.modelControl.options(signal)
+    }
+    this.configOptionsPublished = true
+    return configOptions
+  }
+
   /**
    * Apply one standard configuration option to later ACP turns.
    * @param configId - advertised standard option id.
@@ -211,6 +228,10 @@ export class AcpSession {
   /** Resolve topology state off-chain, then serialize its notification without blocking execution updates. */
   topologyChanged(): void {
     if (this.closing !== undefined) return
+    if (!this.configOptionsPublished) {
+      this.topologyChangedDuringActivation = true
+      return
+    }
     void this.modelControl.options()
       .then((configOptions) => {
         if (this.closing !== undefined) return

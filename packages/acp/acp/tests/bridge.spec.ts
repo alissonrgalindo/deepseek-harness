@@ -548,6 +548,30 @@ describe('automation-only ACP bridge', () => {
     expect(harness.sessionUpdates.at(-1)?.sessionId).toBe(created.sessionId)
   })
 
+  it('folds topology changes during session activation into the initial response', async () => {
+    harness = await makeBridgeHarness()
+    await harness.client.initialize({ protocolVersion: PROTOCOL_VERSION, clientCapabilities: {} })
+    const original = harness.ctx.llm.listModels.bind(harness.ctx.llm)
+    let registered = false
+    const listModels = vi.spyOn(harness.ctx.llm, 'listModels').mockImplementation((provider: string) => {
+      if (!registered) {
+        registered = true
+        harness!.registerCatalogProvider('late')
+      }
+      return original(provider)
+    })
+
+    try {
+      const created = await harness.client.newSession({ cwd: process.cwd(), mcpServers: [] })
+      const model = created.configOptions?.find(option => option.id === 'model')
+      if (model?.type !== 'select') throw new Error('expected a model select option')
+      expect(model.options.some(option => 'group' in option && option.group === 'late')).toBe(true)
+      expect(harness.updates.some(update => update.sessionUpdate === 'config_option_update')).toBe(false)
+    } finally {
+      listModels.mockRestore()
+    }
+  })
+
   it('does not let hung topology discovery block prompt completion or close', async () => {
     harness = await makeBridgeHarness({ script: [textResponse('still responsive')] })
     await harness.client.initialize({ protocolVersion: PROTOCOL_VERSION, clientCapabilities: {} })
